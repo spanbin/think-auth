@@ -8,7 +8,7 @@
 // +----------------------------------------------------------------------
 // | Author: spanbin <shengjianbin@gmail.com>
 // +----------------------------------------------------------------------
-namespace think\auth;
+namespace think;
 
 use think\Db;
 use think\facade\Config;
