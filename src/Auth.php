@@ -2,16 +2,16 @@
 // +----------------------------------------------------------------------
 // | ThinkPHP 5 [ WE CAN DO IT JUST THINK IT ]
 // +----------------------------------------------------------------------
-// | Copyright (c) 2016 http://www.zzstudio.net All rights reserved.
+// | Copyright (c) 2016 https://www.spanbin.top All rights reserved.
 // +----------------------------------------------------------------------
 // | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
 // +----------------------------------------------------------------------
-// | Author: Byron Sampson <xiaobo.sun@gzzstudio.net>
+// | Author: spanbin <shengjianbin@gmail.com>
 // +----------------------------------------------------------------------
-namespace think;
+namespace think\auth;
 
 use think\Db;
-use think\Config;
+use think\facade\Config;
 use think\Session;
 use think\Request;
 use think\Loader;
@@ -32,44 +32,68 @@ use think\Loader;
 //数据库
 /*
 -- ----------------------------
--- think_auth_rule，规则表，
--- id:主键，name：规则唯一标识, title：规则中文名称 status 状态：为1正常，为0禁用，condition：规则表达式，为空表示存在就验证，不为空表示按照条件验证
+-- Table structure for tp_auth_group
 -- ----------------------------
-DROP TABLE IF EXISTS `think_auth_rule`;
-CREATE TABLE `think_auth_rule` (
-    `id` mediumint(8) unsigned NOT NULL AUTO_INCREMENT,
-    `name` char(80) NOT NULL DEFAULT '',
-    `title` char(20) NOT NULL DEFAULT '',
-    `type` tinyint(1) NOT NULL DEFAULT '1',
-    `status` tinyint(1) NOT NULL DEFAULT '1',
-    `condition` char(100) NOT NULL DEFAULT '',  # 规则附件条件,满足附加条件的规则,才认为是有效的规则
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `name` (`name`)
-) ENGINE=MyISAM  DEFAULT CHARSET=utf8;
+DROP TABLE IF EXISTS `tp_auth_group`;
+CREATE TABLE `tp_auth_group` (
+  `id` mediumint(8) NOT NULL AUTO_INCREMENT COMMENT 'id',
+  `title` char(100) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT '标题',
+  `status` tinyint(1) NOT NULL COMMENT '启用',
+  `rules` text CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT '节点权限规则',
+  `data_rules` text CHARACTER SET utf8 COLLATE utf8_general_ci COMMENT '数据权限规则',
+  `sort` decimal(18,2) DEFAULT NULL COMMENT '排序',
+  `rem` varchar(2000) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL COMMENT '备注',
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8 COMMENT='角色表';
+
 -- ----------------------------
--- think_auth_group 用户组表，
--- id：主键， title:用户组中文名称， rules：用户组拥有的规则id， 多个规则","隔开，status 状态：为1正常，为0禁用
+-- Table structure for tp_auth_group_access
 -- ----------------------------
-DROP TABLE IF EXISTS `think_auth_group`;
-    CREATE TABLE `think_auth_group` (
-    `id` mediumint(8) unsigned NOT NULL AUTO_INCREMENT,
-    `title` char(100) NOT NULL DEFAULT '',
-    `status` tinyint(1) NOT NULL DEFAULT '1',
-    `rules` char(80) NOT NULL DEFAULT '',
-    PRIMARY KEY (`id`)
-) ENGINE=MyISAM  DEFAULT CHARSET=utf8;
+DROP TABLE IF EXISTS `tp_auth_group_access`;
+CREATE TABLE `tp_auth_group_access` (
+  `uid` mediumint(8) NOT NULL COMMENT '用户id',
+  `group_id` mediumint(8) NOT NULL COMMENT '用户组id',
+  PRIMARY KEY (`uid`,`group_id`) USING BTREE,
+  KEY `fk_tp_auth_group_access_tp_auth_group_1` (`group_id`) USING BTREE,
+  CONSTRAINT `fk_tp_auth_group_access_tp_auth_group_1` FOREIGN KEY (`group_id`) REFERENCES `tp_auth_group` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_tp_auth_group_access_tp_auth_user_1` FOREIGN KEY (`uid`) REFERENCES `tp_auth_user` (`uid`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='用户和角色组中间表';
+
 -- ----------------------------
--- think_auth_group_access 用户组明细表
--- uid:用户id，group_id：用户组id
+-- Table structure for tp_auth_rule
 -- ----------------------------
-DROP TABLE IF EXISTS `think_auth_group_access`;
-    CREATE TABLE `think_auth_group_access` (
-    `uid` mediumint(8) unsigned NOT NULL,
-    `group_id` mediumint(8) unsigned NOT NULL,
-    UNIQUE KEY `uid_group_id` (`uid`,`group_id`),
-    KEY `uid` (`uid`),
-    KEY `group_id` (`group_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+DROP TABLE IF EXISTS `tp_auth_rule`;
+CREATE TABLE `tp_auth_rule` (
+  `id` mediumint(8) NOT NULL AUTO_INCREMENT COMMENT 'id',
+  `name` char(80) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL COMMENT '规则标识',
+  `title` char(80) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL COMMENT '规则名称',
+  `type` tinyint(1) DEFAULT NULL COMMENT '规则类型',
+  `status` tinyint(1) DEFAULT NULL COMMENT '启用状态',
+  `condition` char(100) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL COMMENT '规则表达式',
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=248 DEFAULT CHARSET=utf8 COMMENT='系统路由规则表';
+
+-- ----------------------------
+-- Table structure for tp_auth_user
+-- ----------------------------
+DROP TABLE IF EXISTS `tp_auth_user`;
+CREATE TABLE `tp_auth_user` (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'id',
+  `uid` mediumint(8) DEFAULT NULL COMMENT '用户id',
+  `user_code` varchar(10) DEFAULT NULL COMMENT '账号',
+  `user_name` varchar(30) DEFAULT NULL COMMENT '用户名',
+  `password` varchar(32) DEFAULT NULL COMMENT '密码',
+  `status` tinyint(1) DEFAULT NULL COMMENT '启用',
+  `last_login_time` datetime DEFAULT NULL COMMENT '最后登录时间',
+  `last_login_ip` varchar(20) DEFAULT NULL COMMENT '最后登录ip',
+  `identity_type` int(11) DEFAULT NULL COMMENT '身份类型',
+  `identity` int(11) DEFAULT NULL COMMENT '身份',
+  `client_id` int(11) DEFAULT NULL COMMENT '客户端id',
+  `secret` varchar(50) DEFAULT NULL COMMENT '凭证密钥',
+  `rem` varchar(2000) DEFAULT NULL COMMENT '备注',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `i_tp_auth_user_uid` (`uid`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8 COMMENT='用户表';
  */
 
 class Auth
@@ -91,7 +115,7 @@ class Auth
         'auth_group' => 'auth_group', // 用户组数据表名
         'auth_group_access' => 'auth_group_access', // 用户-用户组关系表
         'auth_rule' => 'auth_rule', // 权限规则表
-        'auth_user' => 'member', // 用户信息表
+        'auth_user' => 'auth_user', // 用户信息表
     ];
 
     /**
@@ -105,7 +129,7 @@ class Auth
             $this->config = array_merge($this->config, $auth);
         }
         // 初始化request
-        $this->request = Request::instance();
+        $this->request = new Request();
     }
 
     /**
@@ -191,8 +215,8 @@ class Auth
             return $groups[$uid];
         }
         // 转换表名
-        $auth_group_access = $this->config['auth_group_access'];
-        $auth_group = $this->config['auth_group'];
+        $auth_group_access = Loader::parseName($this->config['auth_group_access'], 1);
+        $auth_group = Loader::parseName($this->config['auth_group'], 1);
         // 执行查询
         $user_groups = Db::view($auth_group_access, 'uid,group_id')
             ->view($auth_group, 'title,rules', "{$auth_group_access}.group_id={$auth_group}.id", 'LEFT')
@@ -231,9 +255,9 @@ class Auth
             return [];
         }
         $map = array(
-            'id' => ['in', $ids],
-            'type' => $type,
-            'status' => 1,
+            ['id','in', $ids],
+            ['type','=',$type],
+            ['status','=',1],
         );
         //读取用户组所有权限规则
         $rules = Db::name($this->config['auth_rule'])->where($map)->field('condition,name')->select();
@@ -261,33 +285,6 @@ class Auth
         }
 
         return array_unique($authList);
-    }
-
-    /**
-     * 获取权限组对应的权限列表
-     * @param $gid
-     * @param int $type
-     * @return array|mixed
-     */
-    public function getGroupAuthList($gid, $type = 1)
-    {
-        // 转换表名
-        $auth_group = $this->config['auth_group'];
-        $auth_rule = $this->config['auth_rule'];
-        // 执行查询
-        $rules = Db::name($auth_group)->where(['status'=>1, 'id'=>$gid])->value('rules');
-        // 格式化access表id
-        $ids = explode(',', trim($rules, ','));
-        $ids = array_unique($ids);
-        $map = array(
-            'id' => ['in', $ids],
-            'type' => $type,
-            'status' => 1,
-        );
-        //读取用户组所有权限规则
-        $rules = Db::name($auth_rule)->where($map)->column('title,name,condition');
-
-        return $rules;
     }
 
     /**
